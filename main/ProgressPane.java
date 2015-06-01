@@ -22,40 +22,19 @@ public class ProgressPane extends BorderPane {
 
     private static final int SLIDE_FACTOR = 10000;
 
+    private final Main application;
     private MediaPlayer mp;
-    private YieldingSlider slider;
+    private final YieldingSlider slider;
     private Duration duration = null;
     private Label current = null;
     private Label end = null;
     private Boolean initialized = false;
+    private Boolean mediaRegistered;
 
-    public ProgressPane(MediaPlayer mpRef) {
-        mp = mpRef;
-        slider = new YieldingSlider(0, SLIDE_FACTOR, 0);
-
-        mp.currentTimeProperty().addListener((o) -> {
-            if (!initialized) {
-                duration = mp.getMedia().getDuration();
-                end.setText(Conversions.durationToDynamicHrMnSc(duration));
-                initialized = true;
-            }
-            
-            int value = (int) (mp.getCurrentTime().divide(
-                    duration.toMillis()).toMillis() * SLIDE_FACTOR);
-            slider.setValue(value);
-            
-            current.setText(
-                    Conversions.durationToDynamicHrMnSc(mp.getCurrentTime()));
-        });
-
-        slider.valueProperty().addListener((o) -> {
-            if (slider.isValueChanging() || slider.mouseDown()) {
-                Duration seekTo = new Duration(1.0 * slider.getValue()
-                        / SLIDE_FACTOR * duration.toMillis());
-                mp.seek(seekTo);
-            }
-        });
+    public ProgressPane(Main application) {
+        this.application = application;
         
+        slider = new YieldingSlider(0, SLIDE_FACTOR, 0);
         current = new Label("00:00");
         end = new Label("00:00");
 
@@ -65,8 +44,56 @@ public class ProgressPane extends BorderPane {
         BorderPane.setMargin(slider, new Insets(10, 0, 10, 0));
         BorderPane.setMargin(current, new Insets(10, 10, 10, 10));
         BorderPane.setMargin(end, new Insets(10, 10, 10, 10));
+
+        mediaRegistered = false;
+        this.setDisable(true);
     }
 
+    public void registerMedia(MediaPlayer mpRef) {
+        mp = mpRef;
+
+        mp.currentTimeProperty().addListener((o) -> {
+            if (!initialized) {
+                duration = mp.getMedia().getDuration();
+                end.setText(Conversions.durationToDynamicHrMnSc(duration));
+                initialized = true;
+            }
+
+            int value = (int) (mp.getCurrentTime().divide(
+                    duration.toMillis()).toMillis() * SLIDE_FACTOR);
+            slider.setValue(value);
+
+            current.setText(
+                    Conversions.durationToDynamicHrMnSc(mp.getCurrentTime()));
+        });
+
+        slider.valueProperty().addListener((o) -> {
+            if (slider.isValueChanging() || slider.mouseDown()) {
+                Duration seekTo = new Duration(1.0 * slider.getValue()
+                        / SLIDE_FACTOR * duration.toMillis());
+                application.seekAndUpdate(seekTo);
+            }
+        });
+
+        mediaRegistered = true;
+        this.setDisable(false);
+    }
+
+    public Boolean isMediaRegistered() {
+        return mediaRegistered;
+    }
+
+    public void deregisterMedia() {
+        if (isMediaRegistered()) {
+            slider.setValue(0);
+            current.setText("00:00");
+            end.setText("00:00");
+
+            mp = null;
+            mediaRegistered = false;
+            this.setDisable(true);
+        }
+    }
 
     class YieldingSlider extends Slider {
 
@@ -74,7 +101,7 @@ public class ProgressPane extends BorderPane {
 
         public YieldingSlider(int start, int end, int position) {
             super(start, end, position);
-            
+
             addEventFilter(MouseEvent.MOUSE_PRESSED, (e) -> {
                 mousePressed = true;
             });

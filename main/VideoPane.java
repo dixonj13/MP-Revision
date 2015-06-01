@@ -14,16 +14,35 @@ import javafx.scene.media.*;
  */
 public class VideoPane extends Pane {
 
-    private final MediaView mv;
-    private final MediaPlayer mp;
+    private MediaView mv;
+    private MediaPlayer mp;
 
-    public VideoPane(MediaPlayer mpRef) {
-        this.setId("VideoPane");
+    private Boolean mediaRegistered;
+
+    public VideoPane() {
         this.setStyle("-fx-background-color: black;");
-        this.mp = mpRef;
+        mediaRegistered = false;
+    }
+
+    public void registerMedia(MediaPlayer mpRef) {
+        mp = mpRef;
         mv = new MediaView(mp);
         mv.setPreserveRatio(true);
         this.getChildren().add(mv);
+        mediaRegistered = true;
+    }
+
+    public Boolean isMediaRegistered() {
+        return mediaRegistered;
+    }
+
+    public void deregisterMedia() {
+        if (isMediaRegistered()) {
+            mp = null;
+            this.getChildren().remove(mv);
+            mv = null;
+            mediaRegistered = false;
+        }
     }
 
     @Override
@@ -38,12 +57,18 @@ public class VideoPane extends Pane {
 
     @Override
     protected double computePrefWidth(double height) {
-        return mp.getMedia().getWidth();
+        if (mp != null) {
+            return mp.getMedia().getWidth();
+        }
+        return 200;
     }
 
     @Override
     protected double computePrefHeight(double width) {
-        return mp.getMedia().getHeight();
+        if (mp != null) {
+            return mp.getMedia().getHeight();
+        }
+        return 150;
     }
 
     @Override
@@ -58,7 +83,6 @@ public class VideoPane extends Pane {
 
     @Override
     protected void layoutChildren() {
-
         if (mv != null) {
             mv.setFitWidth(getWidth());
             mv.setFitHeight(getHeight());
