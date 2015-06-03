@@ -10,6 +10,8 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javafx.application.Application;
 import javafx.application.Platform;
+import javafx.beans.Observable;
+import javafx.collections.transformation.SortedList;
 import javafx.geometry.Insets;
 import javafx.scene.*;
 import javafx.scene.control.*;
@@ -18,6 +20,7 @@ import javafx.scene.media.*;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import javafx.util.Duration;
+import utilities.MarkerBean;
 import utilities.MarkerDataModel;
 
 /**
@@ -129,11 +132,46 @@ public class Main extends Application {
             mdm = new MarkerDataModel(mp, source);
 
             mp.setOnEndOfMedia(() -> {
-                mp.seek(new Duration(0));
+                if(mdm.inVampZone()) {
+                    mdm.updateVampCycle();
+                }
+                mp.seek(mp.getStartTime());
             });
 
             mp.setOnStopped(() -> {
                 deregisterMedia();
+            });
+
+            mp.currentTimeProperty().addListener((Observable observable) -> {
+                Duration time = mp.getCurrentTime();
+                SortedList<MarkerBean> items = mdm.getItems();
+                int n = items.size();
+
+                for (int i = 0; i < (n - 1); i++) {
+                    if (items.get(i).getTime().lessThanOrEqualTo(time)
+                            && items.get(i + 1).getTime().greaterThanOrEqualTo(time)
+                            && i != mdm.getCurrMarkerIndex()) {
+                        mdm.updateMarkerPlaying(i);
+                    }
+                }
+
+                if (items.get(n - 1).getTime().lessThanOrEqualTo(time)
+                        && (n - 1) != mdm.getCurrMarkerIndex()) {
+                    mdm.updateMarkerPlaying(n - 1);
+                }
+            });
+
+            mdm.markerChangeProperty().addListener((o, ov, nv) -> {
+                System.out.println("something recieved");
+                if (mdm.getMarkerChange()) {
+                    if (mdm.inVampZone()) {
+                        safeSetStartAndStopTime(mdm.getVampStart(),
+                                mdm.getVampEnd());
+                    } else {
+                        safeSetStartAndStopTime(new Duration(0),
+                                mp.getMedia().getDuration());
+                    }
+                }
             });
 
             // todo(john): replace this with something permenant
@@ -166,9 +204,14 @@ public class Main extends Application {
             mediaRegistered = false;
         }
     }
-    
-    public void seekAndUpdate(Duration seekTime) {
+
+    public void safeSeek(Duration seekTime) {
         mp.seek(seekTime);
+    }
+
+    public void safeSetStartAndStopTime(Duration start, Duration stop) {
+        mp.setStartTime(start);
+        mp.setStopTime(stop);
     }
 
     private void mediaDebugAutoruns() {

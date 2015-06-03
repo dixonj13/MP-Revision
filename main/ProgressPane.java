@@ -71,7 +71,7 @@ public class ProgressPane extends BorderPane {
             if (slider.isValueChanging() || slider.mouseDown()) {
                 Duration seekTo = new Duration(1.0 * slider.getValue()
                         / SLIDE_FACTOR * duration.toMillis());
-                application.seekAndUpdate(seekTo);
+                application.safeSeek(seekTo);
             }
         });
 
