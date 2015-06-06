@@ -6,13 +6,10 @@
 package main;
 
 import java.io.IOException;
-import javafx.beans.Observable;
-import javafx.collections.transformation.SortedList;
 import javafx.scene.control.ListView;
 import javafx.scene.control.SelectionMode;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.media.MediaPlayer;
-import javafx.util.Duration;
 import utilities.MarkerBean;
 import utilities.MarkerDataModel;
 import utilities.MarkerListCell;

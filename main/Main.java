@@ -142,37 +142,37 @@ public class Main extends Application {
                 deregisterMedia();
             });
 
-            mp.currentTimeProperty().addListener((Observable observable) -> {
-                Duration time = mp.getCurrentTime();
-                SortedList<MarkerBean> items = mdm.getItems();
-                int n = items.size();
+//            mp.currentTimeProperty().addListener((Observable observable) -> {
+//                Duration time = mp.getCurrentTime();
+//                SortedList<MarkerBean> items = mdm.getItems();
+//                int n = items.size();
+//
+//                for (int i = 0; i < (n - 1); i++) {
+//                    if (items.get(i).getTime().lessThanOrEqualTo(time)
+//                            && items.get(i + 1).getTime().greaterThanOrEqualTo(time)
+//                            && i != mdm.getCurrMarkerIndex()) {
+//                        mdm.updateMarkerPlaying(i);
+//                    }
+//                }
+//
+//                if (items.get(n - 1).getTime().lessThanOrEqualTo(time)
+//                        && (n - 1) != mdm.getCurrMarkerIndex()) {
+//                    mdm.updateMarkerPlaying(n - 1);
+//                }
+//            });
 
-                for (int i = 0; i < (n - 1); i++) {
-                    if (items.get(i).getTime().lessThanOrEqualTo(time)
-                            && items.get(i + 1).getTime().greaterThanOrEqualTo(time)
-                            && i != mdm.getCurrMarkerIndex()) {
-                        mdm.updateMarkerPlaying(i);
-                    }
-                }
-
-                if (items.get(n - 1).getTime().lessThanOrEqualTo(time)
-                        && (n - 1) != mdm.getCurrMarkerIndex()) {
-                    mdm.updateMarkerPlaying(n - 1);
-                }
-            });
-
-            mdm.markerChangeProperty().addListener((o, ov, nv) -> {
-                System.out.println("something recieved");
-                if (mdm.getMarkerChange()) {
-                    if (mdm.inVampZone()) {
-                        safeSetStartAndStopTime(mdm.getVampStart(),
-                                mdm.getVampEnd());
-                    } else {
-                        safeSetStartAndStopTime(new Duration(0),
-                                mp.getMedia().getDuration());
-                    }
-                }
-            });
+//            mdm.markerChangeProperty().addListener((o, ov, nv) -> {
+//                System.out.println("something recieved");
+//                if (mdm.getMarkerChange()) {
+//                    if (mdm.inVampZone()) {
+//                        safeSetStartAndStopTime(mdm.getVampStart(),
+//                                mdm.getVampEnd());
+//                    } else {
+//                        safeSetStartAndStopTime(new Duration(0),
+//                                mp.getMedia().getDuration());
+//                    }
+//                }
+//            });
 
             // todo(john): replace this with something permenant
             mediaDebugAutoruns();

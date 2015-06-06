@@ -8,11 +8,11 @@ package utilities;
 import java.io.File;
 import java.io.IOException;
 import java.util.Map;
-import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.SimpleBooleanProperty;
+import java.util.NavigableMap;
+import java.util.TreeMap;
 import javafx.collections.FXCollections;
+import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
-import javafx.collections.ObservableMap;
 import javafx.collections.transformation.SortedList;
 import javafx.scene.media.MediaPlayer;
 import javafx.util.Duration;
@@ -27,8 +27,7 @@ public class MarkerDataModel {
     public static final int VAMP_INFINITE = -1;
 
     private MediaPlayer mp;
-    private Map<String, Duration> map;
-    private ObservableMap<String, Duration> markerMap;
+    private NavigableMap<Duration, MarkerBean> navMap;
     private ObservableList<MarkerBean> obs;
     private SortedList<MarkerBean> items;
     private ObservableList<Vamp> vamps;
@@ -36,7 +35,6 @@ public class MarkerDataModel {
     private int prevMarker;
     private int currMarker;
     private int nextMarker;
-    private BooleanProperty markerChange;
 
     private Boolean inVampZone;
     private Vamp currVamp;
@@ -44,11 +42,58 @@ public class MarkerDataModel {
     public MarkerDataModel(MediaPlayer mpRef, File source) throws IOException {
         mp = mpRef;
         vamps = FXCollections.observableArrayList();
-        setMarkerChange(false);
+        navMap = new TreeMap<>((Duration o1, Duration o2) -> {
+            return (int) ((o1.toMillis() * 100) - (o2.toMillis() * 100));
+        });
 
         obs = FXCollections.observableArrayList(MarkerBean.extractor());
         items = new SortedList<>(obs, (MarkerBean o1, MarkerBean o2) -> {
             return (int) (o1.getTime().toMillis() - o2.getTime().toMillis());
+        });
+
+        items.addListener(new ListChangeListener() {
+
+            @Override
+            public void onChanged(ListChangeListener.Change c) {
+                while (c.next()) {
+                    if (c.wasUpdated()) {
+                        // check this
+                    } else {
+                        for (Object rem : c.getRemoved()) {
+                            navMap.remove(((MarkerBean) rem).getTime());
+                            int remSize = c.getRemovedSize();
+                            int listSize = items.size();
+                            for (int i = c.getTo(); i < listSize; i++) {
+                                navMap.get(items.get(i).getTime()).decreaseIndexBy(remSize);
+                            }
+                        }
+                        for (Object add : c.getAddedSubList()) {
+                            navMap.put(((MarkerBean) add).getTime(), (MarkerBean) add);
+                            int addSize = c.getAddedSize();
+                            int listSize = items.size();
+                            int to = c.getTo();
+                            for (int i = c.getFrom(); i < to; i++) {
+                                navMap.get(items.get(i).getTime()).setIndex(i);
+                            }
+                            for (int i = to; i < listSize; i++) {
+                                navMap.get(items.get(i).getTime()).increaseIndexBy(addSize);
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        mp.currentTimeProperty().addListener((o) -> {
+            int index = navMap.floorEntry(mp.getCurrentTime()).getValue().getIndex();
+
+            if (currMarker != index) {
+                items.get(currMarker).setPlaying(false);
+                items.get(index).setPlaying(true);
+                prevMarker = (index > 0) ? (index - 1) : 0;
+                currMarker = index;
+                nextMarker = (index + 1) % (items.size());
+            }
         });
 
         importMarkers(source);
@@ -56,64 +101,33 @@ public class MarkerDataModel {
         currMarker = 0;
         nextMarker = (items.size() > 1) ? 1 : 0;
 
-        if (!map.containsValue(new Duration(0))) {
+        if (!navMap.containsKey(new Duration(0))) {
             MarkerBean start = new MarkerBean("Start", new Duration(0));
             start.setPlaying(true);
             addMarker(start);
         }
 
-        safeAddVamp(2, 3, 2);
+//        safeAddVamp(2, 3, 2);
     }
 
     private void importMarkers(File source) throws IOException {
-        markerMap = mp.getMedia().getMarkers();
-        map = ChapterParser.parse(source);
-        markerMap = FXCollections.observableMap(map);
+        Map<String, Duration> map = ChapterParser.parse(source);
 
         for (Map.Entry<String, Duration> e : map.entrySet()) {
             obs.add(new MarkerBean(e.getKey(), e.getValue()));
         }
     }
 
-    public void updateMarkerPlaying(int index) {
-        if (currMarker != index) {
-            System.out.println("something");
-
-            items.get(currMarker).setPlaying(false);
-            items.get(index).setPlaying(true);
-            prevMarker = (index > 0) ? (index - 1) : 0;
-            currMarker = index;
-            nextMarker = (index + 1) % (items.size());
-            setMarkerChange(true);
-        } else {
-            setMarkerChange(false);
-        }
-    }
-
     public final void addMarker(MarkerBean m) {
-        map.put(m.getTitle(), m.getTime());
         obs.add(m);
     }
 
     public final void addMarker(String title, Duration time) {
-        map.put(title, time);
         obs.add(new MarkerBean(title, time));
     }
 
-    public final void removeMarker(MarkerBean m) {
-        String key = m.getTitle();
-        if (map.containsKey(key)) {
-            map.remove(key);
-            obs.remove(m);
-        }
-    }
-
-    public ObservableMap<String, Duration> getMarkers() {
-        return markerMap;
-    }
-
-    public void setMarkers(ObservableMap<String, Duration> markerMap) {
-        this.markerMap = markerMap;
+    public final void removeMarker(int index) {
+        obs.remove(index);
     }
 
     public SortedList<MarkerBean> getItems() {
@@ -124,15 +138,15 @@ public class MarkerDataModel {
         this.items = items;
     }
 
-    public int getPrevMarkerIndex() {
+    private int getPrevMarkerIndex() {
         return prevMarker;
     }
 
-    public int getCurrMarkerIndex() {
+    private int getCurrMarkerIndex() {
         return currMarker;
     }
 
-    public int getNextMarkerIndex() {
+    private int getNextMarkerIndex() {
         return nextMarker;
     }
 
@@ -148,21 +162,6 @@ public class MarkerDataModel {
         return items.get(nextMarker).getTime();
     }
 
-    public final void setMarkerChange(final Boolean value) {
-        markerChangeProperty().set(value);
-    }
-
-    public final Boolean getMarkerChange() {
-        return markerChangeProperty().get();
-    }
-
-    public final BooleanProperty markerChangeProperty() {
-        if(markerChange == null) { 
-            markerChange = new SimpleBooleanProperty(true);
-        }
-        return markerChange;
-    }
-
     public Boolean inVampZone() {
         int size = vamps.size();
         for (int i = 0; i < size; i++) {
@@ -174,27 +173,6 @@ public class MarkerDataModel {
             }
         }
         return inVampZone = false;
-    }
-
-    public int vampsLeft() {
-        if (currVamp == null) {
-            return VAMP_UNDEFINED;
-        }
-        return currVamp.getRepeatsRemaining();
-    }
-
-    public Duration getVampStart() {
-        if (currVamp == null) {
-            return null;
-        }
-        return currVamp.getStartTime();
-    }
-
-    public Duration getVampEnd() {
-        if (currVamp == null) {
-            return null;
-        }
-        return currVamp.getStopTime();
     }
 
     public void updateVampCycle() {

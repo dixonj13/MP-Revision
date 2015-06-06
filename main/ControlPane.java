@@ -139,6 +139,7 @@ public class ControlPane extends HBox {
 
     public void deregisterMedia() {
         if (isMediaRegistered()) {
+            playIcon.setImage(PLAY);
             mp = null;
             mediaRegistered = false;
             stop.setDisable(true);

@@ -7,8 +7,10 @@ package utilities;
 
 import javafx.beans.Observable;
 import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
@@ -25,12 +27,14 @@ public class MarkerBean {
     private StringProperty title;
     private BooleanProperty playing;
     private BooleanProperty vamped;
+    private IntegerProperty index;
 
     public MarkerBean() {
         setTime(new Duration(0));
         setTitle("Start");
         setPlaying(false);
         setVamped(false);
+        setIndex(-1);
     }
 
     public MarkerBean(String title, Duration time) {
@@ -55,10 +59,14 @@ public class MarkerBean {
         return titleProperty().get();
     }
 
+    public final int getIndex() {
+        return indexProperty().get();
+    }
+
     public final Boolean isPlaying() {
         return playingProperty().get();
     }
-    
+
     public final Boolean isVamped() {
         return vampedProperty().get();
     }
@@ -74,9 +82,21 @@ public class MarkerBean {
     public final void setPlaying(final Boolean playing) {
         playingProperty().set(playing);
     }
-    
+
     public final void setVamped(final Boolean vamped) {
         vampedProperty().set(vamped);
+    }
+
+    public final void setIndex(final int i) {
+        indexProperty().set(i);
+    }
+
+    public void decreaseIndexBy(int v) {
+        setIndex(getIndex() - v);
+    }
+
+    public void increaseIndexBy(int v) {
+        setIndex(getIndex() + v);
     }
 
     public ObjectProperty<Duration> timeProperty() {
@@ -105,6 +125,13 @@ public class MarkerBean {
             vamped = new SimpleBooleanProperty();
         }
         return vamped;
+    }
+
+    public final IntegerProperty indexProperty() {
+        if (index == null) {
+            index = new SimpleIntegerProperty();
+        }
+        return index;
     }
 
     public String stringValue() {
