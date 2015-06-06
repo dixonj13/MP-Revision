@@ -42,6 +42,7 @@ public class MarkerBean {
         setTitle(title);
         setPlaying(false);
         setVamped(false);
+        setIndex(-1);
     }
 
     public MarkerBean(String title, double time) {
@@ -49,6 +50,7 @@ public class MarkerBean {
         setTitle(title);
         setPlaying(false);
         setVamped(false);
+        setIndex(-1);
     }
 
     public final Duration getTime() {

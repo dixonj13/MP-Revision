@@ -21,10 +21,14 @@ public class MarkerListCell extends ListCell<MarkerBean> {
 
     private static final Image PLAY = new Image("image/marker-play.png");
     private static final ImageView playIcon = new ImageView(PLAY);
+    private static final Image VAMP = new Image("image/vamp.png");
+    private static final ImageView vampIcon = new ImageView(VAMP);
 
     public MarkerListCell() {
         playIcon.setFitHeight(11);
         playIcon.setFitWidth(11);
+        vampIcon.setFitHeight(11);
+        vampIcon.setFitWidth(11);
     }
 
     @Override
@@ -35,6 +39,7 @@ public class MarkerListCell extends ListCell<MarkerBean> {
         if (empty) {
             this.setGraphic(null);
         } else {
+            System.out.println(marker.getIndex());
             Label time = new Label(Conversions.durationToDynamicHrMnSc(marker.getTime()));
             Label title = new Label(marker.getTitle());
             title.setFont(Font.font("", FontWeight.BOLD, 12));
@@ -46,7 +51,11 @@ public class MarkerListCell extends ListCell<MarkerBean> {
             grid.add(time, 1, 1);
 
             if (marker.isPlaying()) {
-                grid.add(playIcon, 0, 0, 1, 2);
+                grid.add(playIcon, 0, 0, 1, 1);
+            }
+            
+            if(marker.isVamped()) {
+                grid.add(vampIcon, 0, 1, 1, 1);
             }
 
             this.setGraphic(grid);

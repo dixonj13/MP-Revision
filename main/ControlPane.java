@@ -115,16 +115,16 @@ public class ControlPane extends HBox {
         });
 
         prev.setOnAction((e) -> {
-            Duration offset = mp.getCurrentTime().subtract(mdm.getCurrMarker());
+            Duration offset = mp.getCurrentTime().subtract(mdm.getCurrMarker().getTime());
             if (offset.greaterThanOrEqualTo(new Duration(300))) {
-                application.safeSeek(mdm.getCurrMarker());
+                application.safeSeek(mdm.getCurrMarker().getTime());
             } else {
-                application.safeSeek(mdm.getPrevMarker());
+                application.safeSeek(mdm.getPrevMarker().getTime());
             }
         });
 
         next.setOnAction((e) -> {
-            application.safeSeek(mdm.getNextMarker());
+            application.safeSeek(mdm.getNextMarker().getTime());
         });
 
         mediaRegistered = true;

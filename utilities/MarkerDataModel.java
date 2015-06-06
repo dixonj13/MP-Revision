@@ -41,6 +41,8 @@ public class MarkerDataModel {
 
     public MarkerDataModel(MediaPlayer mpRef, File source) throws IOException {
         mp = mpRef;
+        inVampZone = false;
+        currVamp = null;
         vamps = FXCollections.observableArrayList();
         navMap = new TreeMap<>((Duration o1, Duration o2) -> {
             return (int) ((o1.toMillis() * 100) - (o2.toMillis() * 100));
@@ -87,6 +89,13 @@ public class MarkerDataModel {
         mp.currentTimeProperty().addListener((o) -> {
             int index = navMap.floorEntry(mp.getCurrentTime()).getValue().getIndex();
 
+            if (!inVampZone) {
+                if (checkVampZone()) {
+                    mp.setStartTime(currVamp.getStartTime());
+                    mp.setStopTime(currVamp.getStopTime());
+                }
+            }
+
             if (currMarker != index) {
                 items.get(currMarker).setPlaying(false);
                 items.get(index).setPlaying(true);
@@ -107,7 +116,7 @@ public class MarkerDataModel {
             addMarker(start);
         }
 
-//        safeAddVamp(2, 3, 2);
+        safeAddVamp(2, 3, 2);
     }
 
     private void importMarkers(File source) throws IOException {
@@ -138,36 +147,28 @@ public class MarkerDataModel {
         this.items = items;
     }
 
-    private int getPrevMarkerIndex() {
-        return prevMarker;
+    public MarkerBean getPrevMarker() {
+        return items.get(prevMarker);
     }
 
-    private int getCurrMarkerIndex() {
-        return currMarker;
+    public MarkerBean getCurrMarker() {
+        return items.get(currMarker);
     }
 
-    private int getNextMarkerIndex() {
-        return nextMarker;
+    public MarkerBean getNextMarker() {
+        return items.get(nextMarker);
     }
 
-    public Duration getPrevMarker() {
-        return items.get(prevMarker).getTime();
+    public final Boolean inVampZone() {
+        return inVampZone;
     }
 
-    public Duration getCurrMarker() {
-        return items.get(currMarker).getTime();
-    }
-
-    public Duration getNextMarker() {
-        return items.get(nextMarker).getTime();
-    }
-
-    public Boolean inVampZone() {
+    public final Boolean checkVampZone() {
         int size = vamps.size();
         for (int i = 0; i < size; i++) {
             Vamp curr = vamps.get(i);
-            if (inRange(mp.getCurrentTime(), curr.getStartTime(),
-                    curr.getStopTime())) {
+            if (inRange(currMarker, curr.getStartIndex(),
+                    curr.getStopIndex())) {
                 currVamp = curr;
                 return inVampZone = true;
             }
@@ -177,12 +178,16 @@ public class MarkerDataModel {
 
     public void updateVampCycle() {
         int repeats = currVamp.getRepeatsRemaining();
+        System.out.println("Before: " + repeats);
         if (repeats > 0) {
             currVamp.decrementRepeatsRemaining();
+            System.out.println("After: " + currVamp.getRepeatsRemaining());
         } else if (repeats == 0) {
-            vamps.remove(currVamp);
+            safeRemoveVamp(currVamp.getStartIndex(), currVamp.getStopIndex());
             inVampZone = false;
             currVamp = null;
+            mp.setStartTime(new Duration(0));
+            mp.setStopTime(mp.getMedia().getDuration());
         }
     }
 
@@ -190,15 +195,16 @@ public class MarkerDataModel {
         int size = vamps.size();
         for (int i = 0; i < size; i++) {
             Vamp curr = vamps.get(i);
-            if (doRangesOverlap(items.get(start).getTime(),
-                    items.get(end).getTime(), curr.getStartTime(),
-                    curr.getStopTime())) {
+            if (doRangesOverlap(items.get(start).getIndex(),
+                    items.get(end).getIndex(), curr.getStartIndex(),
+                    curr.getStopIndex())) {
                 removeVamp(i);
             }
         }
         vamps.add(new Vamp(start, end, repeats));
         for (int i = start; i <= end; i++) {
             items.get(i).setVamped(true);
+            System.out.printf("Index %d: Vamped = %b\n", i, items.get(i).isVamped());
         }
     }
 
@@ -206,9 +212,9 @@ public class MarkerDataModel {
         int size = vamps.size();
         for (int i = 0; i < size; i++) {
             Vamp curr = vamps.get(i);
-            if (doRangesOverlap(items.get(start).getTime(),
-                    items.get(end).getTime(), curr.getStartTime(),
-                    curr.getStopTime())) {
+            if (doRangesOverlap(items.get(start).getIndex(),
+                    items.get(end).getIndex(), curr.getStartIndex(),
+                    curr.getStopIndex())) {
                 removeVamp(i);
                 break;
             }
@@ -218,18 +224,18 @@ public class MarkerDataModel {
     private void removeVamp(int index) {
         Vamp temp = vamps.get(index);
         vamps.remove(index);
-        for (int i = temp.getStartIndex(); i < temp.getStopIndex(); i++) {
+        for (int i = temp.getStartIndex(); i <= temp.getStopIndex(); i++) {
             items.get(i).setVamped(false);
+            System.out.printf("Index %d: Vamped = %b\n", i, items.get(i).isVamped());
         }
     }
 
-    private Boolean doRangesOverlap(Duration x1, Duration x2, Duration y1,
-            Duration y2) {
-        return (x1.lessThanOrEqualTo(y2)) && (y1.lessThanOrEqualTo(x2));
+    private Boolean doRangesOverlap(int x1, int x2, int y1, int y2) {
+        return (x1 <= y2) && (y1 <= x2);
     }
 
-    private Boolean inRange(Duration index, Duration x1, Duration y1) {
-        return (x1.lessThanOrEqualTo(index)) && (index.lessThanOrEqualTo(y1));
+    private Boolean inRange(int index, int x1, int y1) {
+        return (x1 <= index) && (index <= y1);
     }
 
     public class Vamp {
@@ -245,7 +251,7 @@ public class MarkerDataModel {
             stopIndex = stop;
             this.start = items.get(start).getTime();
             this.stop = (stop < items.size() - 1)
-                    ? items.get(stop + 1).getTime().subtract(new Duration(1))
+                    ? items.get(stop + 1).getTime().subtract(new Duration(10))
                     : mp.getMedia().getDuration();
             repeatsRemaining = repeats;
         }
