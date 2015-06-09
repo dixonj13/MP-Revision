@@ -126,13 +126,10 @@ public class Main extends Application {
         if (source != null) {
             Media media = new Media(source.toURI().toString());
             mp = new MediaPlayer(media);
-            mdm = new MarkerDataModel(mp, source);
+            mdm = new MarkerDataModel(mp, source, this);
 
             mp.setOnEndOfMedia(() -> {
                 safeSeek(mp.getStartTime());
-                if(mdm.inVampZone()) {
-                    mdm.updateVampCycle();
-                }
             });
 
             mp.setOnStopped(() -> {

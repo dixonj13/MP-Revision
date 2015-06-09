@@ -19,10 +19,10 @@ import javafx.scene.text.FontWeight;
  */
 public class MarkerListCell extends ListCell<MarkerBean> {
 
-    private static final Image PLAY = new Image("image/marker-play.png");
-    private static final ImageView playIcon = new ImageView(PLAY);
-    private static final Image VAMP = new Image("image/vamp.png");
-    private static final ImageView vampIcon = new ImageView(VAMP);
+    private final Image PLAY = new Image("image/marker-play.png");
+    private final ImageView playIcon = new ImageView(PLAY);
+    private final Image VAMP = new Image("image/vamp.png");
+    private final ImageView vampIcon = new ImageView(VAMP);
 
     public MarkerListCell() {
         playIcon.setFitHeight(11);
@@ -39,7 +39,6 @@ public class MarkerListCell extends ListCell<MarkerBean> {
         if (empty) {
             this.setGraphic(null);
         } else {
-            System.out.println(marker.getIndex());
             Label time = new Label(Conversions.durationToDynamicHrMnSc(marker.getTime()));
             Label title = new Label(marker.getTitle());
             title.setFont(Font.font("", FontWeight.BOLD, 12));

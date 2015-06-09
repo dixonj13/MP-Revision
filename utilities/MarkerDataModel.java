@@ -16,6 +16,7 @@ import javafx.collections.ObservableList;
 import javafx.collections.transformation.SortedList;
 import javafx.scene.media.MediaPlayer;
 import javafx.util.Duration;
+import main.Main;
 
 /**
  *
@@ -23,8 +24,7 @@ import javafx.util.Duration;
  */
 public class MarkerDataModel {
 
-    public static final int VAMP_UNDEFINED = -2;
-    public static final int VAMP_INFINITE = -1;
+    private Main application;
 
     private MediaPlayer mp;
     private NavigableMap<Duration, MarkerBean> navMap;
@@ -39,7 +39,9 @@ public class MarkerDataModel {
     private Boolean inVampZone;
     private Vamp currVamp;
 
-    public MarkerDataModel(MediaPlayer mpRef, File source) throws IOException {
+    public MarkerDataModel(MediaPlayer mpRef, File source, Main application)
+            throws IOException {
+        this.application = application;
         mp = mpRef;
         inVampZone = false;
         currVamp = null;
@@ -87,12 +89,18 @@ public class MarkerDataModel {
         });
 
         mp.currentTimeProperty().addListener((o) -> {
-            int index = navMap.floorEntry(mp.getCurrentTime()).getValue().getIndex();
+            Duration currTime = mp.getCurrentTime();
+            int index = navMap.floorEntry(currTime).getValue().getIndex();
 
             if (!inVampZone) {
-                if (checkVampZone()) {
-                    mp.setStartTime(currVamp.getStartTime());
-                    mp.setStopTime(currVamp.getStopTime());
+                checkVampZone();
+            }
+
+            if (inVampZone) {
+                if (inDurationRange(currTime, currVamp.getWindowStart(),
+                        currVamp.getWindowStop())) {
+                    application.safeSeek(currVamp.getStartTime());
+                    updateVampCycle();
                 }
             }
 
@@ -116,6 +124,7 @@ public class MarkerDataModel {
             addMarker(start);
         }
 
+        // TEMPORARY
         safeAddVamp(2, 3, 2);
     }
 
@@ -164,24 +173,27 @@ public class MarkerDataModel {
     }
 
     public final Boolean checkVampZone() {
-        int size = vamps.size();
-        for (int i = 0; i < size; i++) {
-            Vamp curr = vamps.get(i);
-            if (inRange(currMarker, curr.getStartIndex(),
-                    curr.getStopIndex())) {
-                currVamp = curr;
-                return inVampZone = true;
+        if (getCurrMarker().isVamped()) {
+            inVampZone = true;
+            int size = vamps.size();
+            for (int i = 0; i < size; i++) {
+                Vamp curr = vamps.get(i);
+                if (inRange(currMarker, curr.getStartIndex(),
+                        curr.getStopIndex())) {
+                    currVamp = curr;
+                    break;
+                }
             }
+        } else {
+            inVampZone = false;
         }
-        return inVampZone = false;
+        return inVampZone;
     }
 
-    public void updateVampCycle() {
+    public final void updateVampCycle() {
         int repeats = currVamp.getRepeatsRemaining();
-        System.out.println("Before: " + repeats);
         if (repeats > 0) {
-            currVamp.decrementRepeatsRemaining();
-            System.out.println("After: " + currVamp.getRepeatsRemaining());
+            currVamp.decrementRepeatsRemaining(); 
         } else if (repeats == 0) {
             safeRemoveVamp(currVamp.getStartIndex(), currVamp.getStopIndex());
             inVampZone = false;
@@ -204,7 +216,6 @@ public class MarkerDataModel {
         vamps.add(new Vamp(start, end, repeats));
         for (int i = start; i <= end; i++) {
             items.get(i).setVamped(true);
-            System.out.printf("Index %d: Vamped = %b\n", i, items.get(i).isVamped());
         }
     }
 
@@ -226,7 +237,6 @@ public class MarkerDataModel {
         vamps.remove(index);
         for (int i = temp.getStartIndex(); i <= temp.getStopIndex(); i++) {
             items.get(i).setVamped(false);
-            System.out.printf("Index %d: Vamped = %b\n", i, items.get(i).isVamped());
         }
     }
 
@@ -238,10 +248,15 @@ public class MarkerDataModel {
         return (x1 <= index) && (index <= y1);
     }
 
+    private Boolean inDurationRange(Duration index, Duration x1, Duration x2) {
+        return (x1.lessThanOrEqualTo(index)) && (index.lessThanOrEqualTo(x2));
+    }
+
     public class Vamp {
 
         private final Duration start;
-        private final Duration stop;
+        private final Duration windowStart;
+        private final Duration windowStop;
         private final int startIndex;
         private final int stopIndex;
         private int repeatsRemaining;
@@ -250,9 +265,10 @@ public class MarkerDataModel {
             startIndex = start;
             stopIndex = stop;
             this.start = items.get(start).getTime();
-            this.stop = (stop < items.size() - 1)
-                    ? items.get(stop + 1).getTime().subtract(new Duration(10))
-                    : mp.getMedia().getDuration();
+            windowStop = (stop < items.size() - 1)
+                    ? items.get(stop + 1).getTime().subtract(new Duration(1))
+                    : mp.getMedia().getDuration().subtract(new Duration(1));
+            windowStart = windowStop.subtract(new Duration(101));
             repeatsRemaining = repeats;
         }
 
@@ -276,8 +292,12 @@ public class MarkerDataModel {
             return start;
         }
 
-        public Duration getStopTime() {
-            return stop;
+        public Duration getWindowStart() {
+            return windowStart;
+        }
+
+        public Duration getWindowStop() {
+            return windowStop;
         }
 
         public void decrementRepeatsRemaining() {
