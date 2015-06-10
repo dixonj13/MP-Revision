@@ -192,14 +192,12 @@ public class MarkerDataModel {
 
     public final void updateVampCycle() {
         int repeats = currVamp.getRepeatsRemaining();
-        if (repeats > 0) {
+        if (repeats > 1) {
             currVamp.decrementRepeatsRemaining(); 
-        } else if (repeats == 0) {
+        } else if (repeats == 1) {
             safeRemoveVamp(currVamp.getStartIndex(), currVamp.getStopIndex());
             inVampZone = false;
             currVamp = null;
-            mp.setStartTime(new Duration(0));
-            mp.setStopTime(mp.getMedia().getDuration());
         }
     }
 
